@@ -20,12 +20,16 @@ fn check(args: &ConfigCheckArgs, ctx: &super::Ctx) -> Result<i32, AppError> {
     };
     let sources = config_schema::check_repo(&root)?;
     let drift_count: usize = sources.iter().map(|s| s.drifts.len()).sum();
+    let skipped_count = sources.iter().filter(|s| s.skipped).count();
 
     if ctx.json {
         println!(
             "{}",
+            serde_json::to_string_pretty(&report_json(&root, &sources, drift_count, skipped_count))
+                .unwrap()
         );
     } else {
+        render_human(&sources, drift_count, skipped_count);
     }
 
     Ok(if drift_count == 0 {
@@ -46,20 +50,31 @@ fn repo_root() -> Result<PathBuf, AppError> {
     })
 }
 
+fn report_json(
+    root: &Path,
+    sources: &[SourceReport],
+    drift_count: usize,
+    skipped_count: usize,
+) -> ConfigCheckReport {
     ConfigCheckReport {
         schema: crate::api::dto::SCHEMA_VERSION,
         root: root.display().to_string(),
         sources: sources.to_vec(),
         summary: ConfigCheckSummary {
             sources: sources.len(),
+            skipped: skipped_count,
             drift: drift_count,
         },
     }
 }
 
+fn render_human(sources: &[SourceReport], drift_count: usize, skipped_count: usize) {
     use std::io::Write;
     let mut out = std::io::stdout().lock();
     for s in sources {
+        if s.skipped {
+            let _ = writeln!(out, "  skip  {} (absent under root)", s.file);
+        } else if s.ok() {
             let _ = writeln!(out, "  ok    {}", s.file);
         } else {
             let _ = writeln!(out, "  drift {}", s.file);
@@ -77,7 +92,9 @@ fn repo_root() -> Result<PathBuf, AppError> {
     }
     let _ = writeln!(
         out,
+        "summary: {} sources ({} skipped), {} drift item(s)",
         sources.len(),
+        skipped_count,
         drift_count
     );
 }

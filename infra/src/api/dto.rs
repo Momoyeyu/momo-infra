@@ -377,7 +377,10 @@ pub struct ConfigCheckReport {
 
 #[derive(Debug, Serialize)]
 pub struct ConfigCheckSummary {
+    /// 被检查来源文件数（含 skipped）。
     pub sources: usize,
+    /// `root` 下不存在而跳过的来源数（拆仓口径，不计漂移）。
+    pub skipped: usize,
     /// 漂移条目总数。
     pub drift: usize,
 }

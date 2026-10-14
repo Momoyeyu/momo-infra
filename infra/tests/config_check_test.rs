@@ -170,6 +170,43 @@ fn config_check_json_shape() {
     fs::remove_dir_all(&dir).unwrap();
 }
 
+/// 拆仓口径：root 下不存在的来源记 skip 不计漂移（退出码 0）；
+/// 存在的来源照常校验。fixture 删掉 app/.env.example 模拟 momo-infra 视角。
+#[test]
+fn config_check_missing_source_skips_exit_0() {
+    let dir = fixture_dir("skip");
+    write_fixture(&dir);
+    fs::remove_file(dir.join("app/.env.example")).unwrap();
+
+    let out = momoctl(&["config", "check", "--root", dir.to_str().unwrap()], &dir);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("skip  app/.env.example"), "{stdout}");
+
+    // --json：来源带 skipped 标记，summary.skipped 计数。
+    let out = momoctl(
+        &["config", "check", "--json", "--root", dir.to_str().unwrap()],
+        &dir,
+    );
+    assert_eq!(out.status.code(), Some(0));
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(v["summary"]["skipped"], 1);
+    let app_src = v["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["file"] == "app/.env.example")
+        .unwrap();
+    assert_eq!(app_src["skipped"], true);
+    assert_eq!(app_src["drifts"].as_array().unwrap().len(), 0);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
 #[test]
 fn config_check_missing_root_exit_2() {
     let dir = fixture_dir("noroot");

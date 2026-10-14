@@ -3,6 +3,7 @@
 > 一切环境差异与密钥走 `MOMO_` 前缀环境变量（ADR-005）。仓库只提交 `.env.example`（占位无值），本地 `.env` 不入库。
 > 读取组件缩写：`app`=momo-app 编排器/前端；`models`=momo-models 服务；`infra`=momo-infra CLI。
 > 机器可读单源 schema：仓库根 `config.schema.toml`（名称/类型/默认值/敏感/读取组件/各 `.env.example` 归属）。
+> `momoctl config check` 校验 `--root` 下存在的来源（各 `<mod>/.env.example` 与本文档）与 schema 一致；root 下不存在的来源记 `skip` 不计漂移——本仓不持有 `app/`，`app/.env.example` 由 momo 仓 CI 用同一 schema+校验器检查（CI 漂移检查：`ci-config.yml`）。
 
 ## 1. 解析优先级
 
@@ -220,6 +221,7 @@ flowchart TD
 
 ## 6. 机器可读 schema：`config.schema.toml`
 
+仓库根 `config.schema.toml` 是 `MOMO_*` 键的权威来源（single source of truth），但**不是生成器**：仓库只有校验器，没有从 schema 产出本文档或 `.env.example` 的代码——`infra/src/config_schema.rs` 与 `infra/src/cmds/config.rs` 全程只读，不含任何写文件调用。§2 表格、§3 模板与各 `.env.example` 仍须手工同步；`momoctl config check`（CI: `ci-config.yml`）只做**比对校验**：`--root` 下存在的来源不一致即失败，`root` 下不存在的来源记 `skip` 不计漂移（拆仓口径：本仓无 `app/`，`app/.env.example` 由 momo 仓 `ci-config.yml` 以同一 schema+校验器检查），但不会替你改。因此字段口径必须写全：
 
 ```toml
 schema = 1            # 文件格式版本
@@ -246,6 +248,7 @@ passthrough = [ { name, type?, default, files, description } ]   # 非 MOMO_ 前
 
 - [ ] 每个变量有：含义/默认值/取值范围/读取组件/敏感标记
 - [ ] `.env.example` 与 §2 表格 key 集合完全一致
+- [ ] `config.schema.toml` 与 §2 表格/§3 模板/各 `.env.example` 一致（`momoctl config check` 通过；`app/.env.example` 在 momo 仓校验）
 - [ ] 默认值与 momo 仓 protocol.md、runtime.md 中的数字一致（端口、队列、句切阈值、VAD）
 - [ ] 敏感项在日志与 doctor 输出中打码
 - [ ] 降级档切换所需修改的行已在模板注释中列出

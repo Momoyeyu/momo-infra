@@ -91,9 +91,12 @@ impl DriftItem {
 }
 
 /// 单个被检查来源（一个文件）的结果。
+/// `skipped`：来源文件在 `root` 下不存在——拆仓后各仓只持有部分 file_id，
+/// 缺失来源记 skip 不计漂移（config.md §6 拆仓口径）。
 #[derive(Debug, Clone, Serialize)]
 pub struct SourceReport {
     pub file: String,
+    pub skipped: bool,
     pub drifts: Vec<DriftItem>,
 }
 
@@ -335,12 +338,48 @@ pub fn check_env_content(
     drifts
 }
 
+/// 读取并校验单个来源文件 `root/rel`：
+/// 存在 → `check(text)` 漂移比对；不存在 → `skipped`（不计漂移）；
+/// 存在但读取失败 → `file` drift。
+fn check_source(
+    root: &Path,
+    rel: &str,
+    check: impl FnOnce(&str) -> Vec<DriftItem>,
+) -> SourceReport {
+    match fs::read_to_string(root.join(rel)) {
+        Ok(text) => SourceReport {
+            file: rel.into(),
+            skipped: false,
+            drifts: check(&text),
+        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => SourceReport {
+            file: rel.into(),
+            skipped: true,
+            drifts: vec![],
+        },
+        Err(e) => SourceReport {
+            file: rel.into(),
+            skipped: false,
+            drifts: vec![DriftItem::new("file", None, format!("{rel}: {e}"))],
+        },
+    }
+}
+
+/// 全量检查：`root` 下 schema + 各 file_id 的 .env.example + config.md。
+/// schema 缺失/损坏 → `AppError::Config`；`root` 下不存在的来源记 `skip`
+/// （拆仓后各仓只校验自己持有的 file_id，config.md §6）。
 pub fn check_repo(root: &Path) -> Result<Vec<SourceReport>, AppError> {
     let schema = Schema::load(&root.join(SCHEMA_FILE))?;
     let mut reports = vec![];
     for file_id in FILES {
         let rel = format!("{file_id}/.env.example");
+        reports.push(check_source(root, &rel, |text| {
+            check_env_content(text, file_id, &rel, &schema)
+        }));
     }
+    reports.push(check_source(root, CONFIG_MD, |text| {
+        check_config_md(text, &schema)
+    }));
     Ok(reports)
 }
 
