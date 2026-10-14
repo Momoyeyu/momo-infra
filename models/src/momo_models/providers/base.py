@@ -76,10 +76,14 @@ class TTSCaps:
 
 @dataclass(frozen=True)
 class VoiceRef:
+    """克隆参考声线。`ref_audio` 为空表示使用后端默认音色。
+    `name` 为请求级音色名（/v1/audio/speech 的 `voice` 字段），
+    非空时优先于 `MOMO_TTS_VOICE`；clone provider 忽略。"""
 
     ref_audio: Path | None = None
     ref_text: str = ""
     lang: str = "auto"
+    name: str = ""
 
 
 class TTSProvider(ABC):

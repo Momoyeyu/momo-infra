@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     asr_threads: int = 4
     vad_provider: str = "silero"  # silero
     vad_silence_ms: int = 250
+    asr_api_key: str = ""  # /v1/listen 鉴权 key（provider-protocol.md）；空=不校验
 
     # TTS（momo-svc-tts）
     tts_listen: str = "127.0.0.1:7811"
@@ -44,6 +45,7 @@ class Settings(BaseSettings):
     tts_voice_ref: str = ""  # 克隆用参考音频路径
     tts_model_dir: str = ""  # SFT 克隆产物目录（灰度切换/回滚）
     tts_lang: str = "auto"  # zh | en | ja | auto
+    tts_api_key: str = ""  # /v1/audio/speech 鉴权 key（provider-protocol.md）；空=不校验
     cosyvoice3_home: str = ""  # FunAudioLLM/CosyVoice 源码 checkout（含 Matcha-TTS 子模块）
     cosyvoice3_python: str = ""  # cosyvoice3 隔离 venv/conda 解释器路径
 

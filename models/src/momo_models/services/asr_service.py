@@ -1,11 +1,19 @@
+"""momo-svc-asr：/v1/listen（对外 Deepgram 对齐）+ /ws（内部 v2）+ health/ready。
 
+对外形态（provider-protocol.md §1）：一连接一音频流，裸 PCM 二进制帧上行，
+JSON 事件（Metadata/SpeechStarted/UtteranceEnd/Results/Error）回流。
+内部 /ws 管线：audio.open 绑 capture → PCM 帧 → VAD 断句 → speech_end 段转写 →
 input.audio.segment（消息形状见 protocol.md）；cancel/end 丢弃缓存并关 stream。
+两路共用同一 VAD/ASR provider 与断句-转写流水线。
 """
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
 
+from fastapi import FastAPI, WebSocket
+from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from momo_models.audio import UPLINK_SAMPLE_RATE
 from momo_models.config import Settings, get_settings
@@ -15,9 +23,24 @@ from momo_models.proto import (
     AudioHeader,
     FrameError,
     ulid_from_bytes,
+    ulid_new,
     ulid_to_bytes,
 )
+from momo_models.providers.base import (
+    SPEECH_END,
+    SPEECH_START,
+    ASRProvider,
+    VadEvent,
+    VADProvider,
+)
 from momo_models.providers.registry import create_asr_provider, create_vad_provider
+from momo_models.services.common import (
+    WsContext,
+    make_app,
+    msg_attribution,
+    serve,
+    ws_token_ok,
+)
 
 log = get_logger(__name__)
 
@@ -392,15 +415,227 @@ def _startup(settings: Settings) -> Callable[[FastAPI], Awaitable[None]]:
     return _run
 
 
+class _ListenLink:
+    """单条 /v1/listen 连接的 Deepgram 对齐业务面（provider-protocol.md §1）。
+
+    一连接一音频流：裸 PCM 帧 → VAD 断句 → speech_end 段排队转写 → Results。
+    无握手帧；断句/取消由 VAD 与断连语义天然覆盖，不经应用层 control 消息。
+    """
+
+    # /v1/listen 接受的音频参数白名单（其他值 close 4400）。
+    _ENCODINGS = {"linear16"}
+    _SAMPLE_RATES = {"16000"}
+    _CHANNELS = {"1"}
+
+    def __init__(self, ws: WebSocket, app: FastAPI) -> None:
+        self._ws = ws
+        self._app = app
+        self._send_lock = asyncio.Lock()
+        self._queue: asyncio.Queue = asyncio.Queue()
+        self._worker: asyncio.Task | None = None
+        self._closed = False
+
+    def _vad(self) -> VADProvider | None:
+        return getattr(self._app.state, "vad", None)
+
+    def _asr(self) -> ASRProvider | None:
+        return getattr(self._app.state, "asr", None)
+
+    async def _send(self, payload: dict) -> None:
+        async with self._send_lock:
+            await self._ws.send_json(payload)
+
+    async def _error(self, message: str, code: str = "ASR_FAILED") -> None:
+        await self._send({"type": "Error", "message": message, "code": code})
+
+    # ---------- 连接生命周期 ----------
+
+    async def run(self) -> None:
+        """接收循环：binary→VAD；text→KeepAlive/Finalize/CloseStream。"""
+        vad = self._vad()
+        if not getattr(self._app.state, "ready", False) or vad is None or self._asr() is None:
+            await self._error("asr/vad provider not ready")
+            await self._ws.close(code=1011)
+            return
+        try:
+            vad.reset()
+        except Exception as e:
+            await self._error(f"vad reset failed: {e}")
+            await self._ws.close(code=1011)
+            return
+        asr = self._asr()
+        await self._send(
+            {
+                "type": "Metadata",
+                "request_id": ulid_new(),
+                "model_info": {"name": getattr(asr, "name", "unknown"), "version": "v2"},
+                "sample_rate": UPLINK_SAMPLE_RATE,
+            }
+        )
+        self._worker = asyncio.create_task(self._segment_worker(), name="asr-listen-seg")
+        try:
+            while self._ws.client_state == WebSocketState.CONNECTED:
+                frame = await self._ws.receive()
+                data = frame.get("bytes")
+                if data is not None:
+                    await self._on_pcm(data)
+                    continue
+                text = frame.get("text")
+                if text is None:
+                    break
+                if not await self._on_control(text):
+                    break
+        except WebSocketDisconnect:
+            pass
+        finally:
+            await self.aclose()
+
+    async def aclose(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        if self._worker is not None:
+            self._worker.cancel()
+            await asyncio.gather(self._worker, return_exceptions=True)
+
+    # ---------- binary → VAD ----------
+
+    async def _on_pcm(self, pcm: bytes) -> None:
+        vad = self._vad()
+        assert vad is not None
+        try:
+            await self._emit(vad.feed(pcm))
+        except Exception as e:
+            await self._error(f"vad feed failed: {e}")
+
+    async def _emit(self, events: Iterator[VadEvent]) -> None:
+        for e in events:
+            if e.event == SPEECH_START:
+                await self._send({"type": "SpeechStarted", "timestamp": e.at_ms / 1000})
+            elif e.event == SPEECH_END:
+                await self._send(
+                    {
+                        "type": "UtteranceEnd",
+                        "last_word_end": e.at_ms / 1000,
+                        "channel": [0, 0],
+                    }
+                )
+                if e.pcm:
+                    self._queue.put_nowait((e.at_ms / 1000, e.pcm))
+
+    # ---------- 控制帧 ----------
+
+    async def _on_control(self, text: str) -> bool:
+        """False=结束接收循环（CloseStream）；True=继续。"""
+        try:
+            msg = json.loads(text)
+        except json.JSONDecodeError:
+            await self._error("invalid json", code="BAD_MESSAGE")
+            return True
+        if not isinstance(msg, dict):
+            await self._error("control frame must be a json object", code="BAD_MESSAGE")
+            return True
+        msg_type = msg.get("type")
+        if msg_type == "KeepAlive":
+            return True
+        if msg_type == "Finalize":
+            await self._flush()
+            return True
+        if msg_type == "CloseStream":
+            await self._flush()
+            await self._send({"type": "CloseStream"})
+            await self._ws.close(code=1000)
+            return False
+        await self._error(f"unknown type {msg_type!r}", code="BAD_MESSAGE")
+        return True
+
+    async def _flush(self) -> None:
+        """Finalize/CloseStream：冲刷 VAD 残留段，随后等转写队列排空。"""
+        vad = self._vad()
+        assert vad is not None
+        try:
+            await self._emit(vad.flush())
+        except Exception as e:
+            await self._error(f"vad flush failed: {e}")
+        self._queue.put_nowait(None)
+        if self._worker is not None:
+            await asyncio.gather(self._worker, return_exceptions=True)
+        self._worker = None
+
+    async def _segment_worker(self) -> None:
+        """按序转写 speech_end 段 → Results；空文本段不产出（同 /ws 口径）。"""
+        while True:
+            item = await self._queue.get()
+            if item is None:
+                return
+            end_sec, pcm = item
+            asr = self._asr()
+            if asr is None:
+                await self._error("asr provider not ready")
+                continue
+            try:
+                t = await asr.transcribe(pcm, lang=None)
+            except Exception as e:
+                await self._error(f"transcribe failed: {e}")
+                continue
+            if not t.text.strip():
+                log.info("asr.listen_segment_empty")
+                continue
+            duration = t.duration_ms / 1000
+            await self._send(
+                {
+                    "type": "Results",
+                    "channel_index": [0, 1],
+                    "duration": duration,
+                    "start": max(0.0, end_sec - duration),
+                    "is_final": True,
+                    "speech_final": True,
+                    "channel": {
+                        "alternatives": [{"transcript": t.text, "confidence": 1.0, "words": []}]
+                    },
+                }
+            )
+            log.info("asr.listen_segment", lang=t.lang, duration_ms=t.duration_ms)
+
+
+def _listen_params_ok(ws: WebSocket) -> bool:
+    """/v1/listen query 校验：只认 Deepgram 兼容音频参数子集。"""
+    q = ws.query_params
+    enc = q.get("encoding", "linear16")
+    rate = q.get("sample_rate", str(UPLINK_SAMPLE_RATE))
+    ch = q.get("channels", "1")
+    return (
+        enc in _ListenLink._ENCODINGS
+        and rate in _ListenLink._SAMPLE_RATES
+        and ch in _ListenLink._CHANNELS
+    )
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_format)
+    app = make_app(
         role="asr",
         settings=settings,
         debug_path="/v1/asr/transcribe",
         on_startup=_startup(settings),
         business_factory=_AsrLink,
     )
+
+    @app.websocket("/v1/listen")
+    async def listen(ws: WebSocket) -> None:
+        # 鉴权（provider-protocol.md §1.1）：key 未配置放行；不符拒绝升级。
+        conf = ws.app.state.settings
+        if conf.asr_api_key and not ws_token_ok(ws, conf.asr_api_key):
+            await ws.close(code=4401)
+            return
+        if not _listen_params_ok(ws):
+            await ws.close(code=4400)
+            return
+        await ws.accept()
+        await _ListenLink(ws, app).run()
+
+    return app
 
 
 def main() -> None:

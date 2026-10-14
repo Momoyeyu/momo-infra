@@ -49,6 +49,9 @@ VAD 是独立 provider（`providers/vad/`），不从属于 ASR：`VADProvider.f
 
 ## 验收指针
 
+- 对外 provider 接入面（`GET /v1/listen`、`POST /v1/audio/speech`）的线格式与
+  [provider-protocol.md](../01-architecture/provider-protocol.md) 一致。
+- handshake/frame/schema 与 momo 仓[通信协议](https://github.com/Momoyeyu/momo/blob/master/docs/01-architecture/protocol.md)一致（内部 `/ws` 兼容链路）。
 - cancel、seq gap、duplicate、wrong direction、unknown stream 与 stale turn 有确定行为。
 - ASR/TTS 失败遵循 momo 仓 [runtime.md](https://github.com/Momoyeyu/momo/blob/master/docs/01-architecture/runtime.md) 的用户可见降级。
 - manifest checksum 失败不 ready、不 activate。

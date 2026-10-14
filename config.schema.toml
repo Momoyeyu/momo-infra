@@ -18,6 +18,8 @@ key = [
   { name = "MOMO_LLM_MODEL", type = "string", default = "qwen3-30b-a3b-4bit", readers = ["app", "infra"], files = ["app", "infra"], component = "app", description = "传给大脑的 model 字段" },
   { name = "MOMO_LLM_API_KEY", type = "string", default = "", sensitive = true, readers = ["app", "infra"], files = ["app", "infra"], component = "app", description = "大脑端点鉴权 key；本地可为空" },
   { name = "MOMO_LLM_TIMEOUT_MS", type = "int", default = "30000", readers = ["app"], files = ["app"], component = "app", description = "LLM 请求总超时（ms）" },
+  { name = "MOMO_ASR_ENDPOINT", type = "url", default = "ws://127.0.0.1:7810/ws", readers = ["app", "infra"], files = ["app", "infra"], component = "app", description = "ASR 服务端点；path=/ws 为 momo-ws 内部链路，其他 ws(s) 路径为 Deepgram 对齐 /v1/listen 形态" },
+  { name = "MOMO_TTS_ENDPOINT", type = "url", default = "ws://127.0.0.1:7811/ws", readers = ["app", "infra"], files = ["app", "infra"], component = "app", description = "TTS 服务端点；http(s) 为 OpenAI /v1/audio/speech 形态，ws(s) 为 momo-ws 内部链路" },
   { name = "MOMO_EMBED_ENDPOINT", type = "url", default = "ws://127.0.0.1:7812/ws", readers = ["app"], files = ["app"], component = "app", description = "embed 服务 WS 连接地址（编排器→momo-svc-embed，记忆）" },
   { name = "MOMO_BARGEIN_ENABLED", type = "bool", default = "true", readers = ["app"], files = ["app"], component = "app", description = "允许打断" },
   { name = "MOMO_BARGEIN_MIN_MS", type = "int", default = "250", readers = ["app"], files = ["app"], component = "app", description = "打断防抖：input.vad{speech_start} 须持续该时长才触发 barge-in" },
@@ -57,6 +59,8 @@ key = [
   { name = "MOMO_BRAIN_BACKEND", type = "enum", values = ["mlx", "vllm", "deepseek", "local"], default = "mlx", readers = ["infra"], files = ["app", "infra"], component = "infra", description = "大脑后端类型" },
   { name = "MOMO_BRAIN_MODEL_PATH", type = "path", default = "~/models/Qwen3-8B-4bit", readers = ["infra"], files = ["app", "infra"], component = "infra", description = "本地模型目录；degraded 指 GGUF" },
   { name = "MOMO_BRAIN_PORT", type = "int", default = "7820", readers = ["infra"], files = ["app", "infra"], component = "infra", description = "大脑服务端口（对应 MOMO_LLM_ENDPOINT）" },
+  { name = "MOMO_GATEWAY_LISTEN", type = "string", default = "127.0.0.1:7830", readers = ["infra"], files = ["infra"], component = "infra", description = "momoctl gateway 监听地址；--listen 覆盖" },
+  { name = "MOMO_GATEWAY_CONFIG", type = "path", default = "gateway.toml", readers = ["infra"], files = ["infra"], component = "infra", description = "momoctl gateway TOML 配置路径（[[llm.backends]]/[[asr.upstream]]/[[tts.upstream]]，见 gateway.md）；--config 覆盖" },
 ]
 
 # 上游工具直通变量（非 MOMO_ 前缀，config.md §2.5）

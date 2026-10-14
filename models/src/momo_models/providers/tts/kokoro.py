@@ -81,6 +81,9 @@ def _result_audio(result):
 
 
 def _resolve_voice(settings: Settings, voice: VoiceRef) -> str:
+    """音色优先级：请求 `voice.name` > `MOMO_TTS_VOICE` > 语言映射 > zh 兜底。"""
+    if voice.name:
+        return voice.name
     if settings.tts_voice:
         return settings.tts_voice
     lang = voice.lang if voice.lang != "auto" else settings.tts_lang

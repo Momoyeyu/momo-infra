@@ -28,6 +28,7 @@ export default defineConfig({
           { text: '项目介绍', link: '/guide/' },
           { text: '定位与边界', link: '/guide/overview' },
           { text: '配置规范', link: '/guide/config' },
+          { text: 'provider 接入面协议', link: '/guide/provider-protocol' },
         ],
       },
       {

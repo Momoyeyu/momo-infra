@@ -1,10 +1,17 @@
+"""momo-svc-tts：POST /v1/audio/speech（对外 OpenAI 对齐）+ /ws（内部 v2）+ health/ready。
 
+对外形态（provider-protocol.md §2）：OpenAI TTS 请求 → chunked PCM/wav 返回；
+客户端断连即取消。内部 /ws 业务面：output.sentence → audio.open + PCM 帧 +
+EOS + audio.end；control.cancel 取消在途合成（消息形状见 protocol.md）。
 """
 
 import asyncio
 from pathlib import Path
 
+from fastapi import FastAPI, Request
+from fastapi.responses import Response, StreamingResponse
 
+from momo_models.audio import DOWNLINK_SAMPLE_RATE, wav_wrap
 from momo_models.config import get_settings
 from momo_models.logging import configure_logging, get_logger
 from momo_models.proto import (
@@ -20,8 +27,10 @@ from momo_models.providers.registry import create_tts_provider
 from momo_models.services.common import (
     WsContext,
     attach_warmup,
+    bearer_ok,
     make_app,
     msg_attribution,
+    openai_error,
     serve,
 )
 
@@ -257,15 +266,115 @@ class _TtsLink:
             )
 
 
+# ---------- /v1/audio/speech（provider-protocol.md §2） ----------
+
+_SPEECH_FORMATS = {"pcm", "wav"}
+_SPEECH_MAX_INPUT = 4096  # OpenAI 上限口径（字符）
+
+
+def _speech_fail(message: str, *, param: str | None = None) -> Response:
+    return openai_error(400, message, param=param)
+
+
+async def _speech(request: Request) -> Response:
+    """OpenAI TTS 形态：JSON 请求 → PCM 流式 / WAV 整段；断连即取消。"""
+    app = request.app
+    settings = app.state.settings
+    if settings.tts_api_key and not bearer_ok(request, settings.tts_api_key):
+        return openai_error(401, "invalid or missing bearer token", type_="authentication_error")
+    try:
+        body = await request.json()
+    except Exception:
+        return _speech_fail("request body must be json")
+    if not isinstance(body, dict):
+        return _speech_fail("request body must be a json object")
+
+    text = body.get("input")
+    if not isinstance(text, str) or not text.strip():
+        return _speech_fail("input must be a non-empty string", param="input")
+    if len(text) > _SPEECH_MAX_INPUT:
+        return _speech_fail(f"input exceeds {_SPEECH_MAX_INPUT} characters", param="input")
+    fmt = body.get("response_format", "pcm")
+    if fmt not in _SPEECH_FORMATS:
+        return _speech_fail(
+            f"response_format must be one of {sorted(_SPEECH_FORMATS)}",
+            param="response_format",
+        )
+    speed = body.get("speed", 1.0)
+    if not isinstance(speed, int | float) or isinstance(speed, bool) or not (0.25 <= speed <= 4.0):
+        return _speech_fail("speed must be a number in [0.25, 4.0]", param="speed")
+    lang = body.get("lang")
+    lang = lang if isinstance(lang, str) and lang else settings.tts_lang
+    emotion = body.get("emotion")
+    if emotion not in EMOTION_TAGS:
+        emotion = "neutral"
+    voice_name = body.get("voice")
+    voice_name = voice_name if isinstance(voice_name, str) else ""
+
+    provider = getattr(app.state, "provider", None)
+    if provider is None or not getattr(app.state, "ready", False):
+        return openai_error(503, "tts provider not ready", type_="server_error")
+
+    voice = VoiceRef(
+        ref_audio=Path(settings.tts_voice_ref).expanduser() if settings.tts_voice_ref else None,
+        ref_text="",
+        lang=lang,
+        name=voice_name,
+    )
+    try:
+        stream = provider.synth_stream(text.strip(), voice=voice, emotion=emotion)
+        # 首块在响应头发出前拉取：早期失败仍可回 500（同 _TtsLink 口径）。
+        first = await anext(stream, None)
+    except Exception as e:
+        return openai_error(500, f"synth failed: {e}", type_="server_error")
+    if first is None:
+        await stream.aclose()
+        return openai_error(500, "provider produced no audio", type_="server_error")
+
+    if fmt == "wav":
+        # wav 需 RIFF 头带总长：收集完毕单次返回（句长秒级，缓冲代价可接受）。
+        try:
+            pcm = first + b"".join([c async for c in stream])
+        except Exception as e:
+            await stream.aclose()
+            return openai_error(500, f"synth failed: {e}", type_="server_error")
+        await stream.aclose()
+        return Response(
+            content=wav_wrap(pcm, DOWNLINK_SAMPLE_RATE),
+            media_type="audio/wav",
+        )
+
+    async def pcm_chunks():
+        try:
+            yield first
+            async for chunk in stream:
+                if chunk:
+                    yield chunk
+        except Exception as e:
+            # 流中失败无法改状态码；记录后由客户端按截断流处理。
+            log.error("tts.speech_stream_failed", error=str(e))
+        finally:
+            await stream.aclose()
+
+    return StreamingResponse(
+        pcm_chunks(),
+        media_type="audio/pcm",
+        headers={"X-Accel-Buffering": "no"},
+    )
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_format)
+    app = make_app(
         role="tts",
         settings=settings,
         debug_path="/v1/tts/synthesize",
         on_startup=attach_warmup(create_tts_provider, settings, "warmup"),
         business_factory=_TtsLink,
     )
+    app.post("/v1/audio/speech")(_speech)
+    return app
 
 
 def main() -> None:

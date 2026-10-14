@@ -39,6 +39,8 @@ flowchart LR
 | `MOMO_LLM_MODEL` | 传给大脑的 model 字段（主脑 Qwen3-30B-A3B-4bit；8B-4bit 为备档，见 ADR-024） | `qwen3-30b-a3b-4bit` | str | app, infra | 否 |
 | `MOMO_LLM_API_KEY` | `MOMO_LLM_ENDPOINT` 所指上游的鉴权 key；本地可空，远端如 DeepSeek 档必填 | 空 | str | app, infra | **是** |
 | `MOMO_LLM_TIMEOUT_MS` | LLM 请求总超时 | `30000` | ms | app | 否 |
+| `MOMO_ASR_ENDPOINT` | ASR 服务端点；`ws(s)://…/ws`=momo-ws 内部链路，`ws(s)://…/v1/listen`（或其他路径）=Deepgram 对齐流式（provider-protocol.md） | `ws://127.0.0.1:7810/ws` | ws(s):// | app, infra | 否 |
+| `MOMO_TTS_ENDPOINT` | TTS 服务端点；`http(s)://…`=OpenAI `POST /v1/audio/speech`，`ws(s)://…`=momo-ws 内部链路（provider-protocol.md） | `ws://127.0.0.1:7811/ws` | http(s):// 或 ws(s):// | app, infra | 否 |
 | `MOMO_EMBED_ENDPOINT`（记忆） | embed 服务 WS 连接地址（编排器→momo-svc-embed） | `ws://127.0.0.1:7812/ws` | ws:// | app | 否 |
 | `MOMO_BARGEIN_ENABLED` | 允许打断 | `true` | bool | app | 否 |
 | `MOMO_BARGEIN_MIN_MS` | 打断防抖：`input.vad{speech_start}` 须持续该时长才触发 barge-in | `250` | ms | app | 否 |
@@ -64,6 +66,7 @@ flowchart LR
 | `MOMO_ASR_THREADS` | sherpa-onnx CPU 线程 | `4` | 1–16 | models | 否 |
 | `MOMO_VAD_PROVIDER` | VAD 后端 | `silero` | `silero` | models | 否 |
 | `MOMO_VAD_SILENCE_MS` | VAD 判停静音时长 | `250` | ms | models | 否 |
+| `MOMO_ASR_API_KEY` | `/v1/listen` 鉴权 key（`Authorization: Token` 头或 `?token=`/`access_token=` query）；空=不校验 | 空 | str | models | **是** |
 | `MOMO_TTS_LISTEN` | TTS WS 监听 | `127.0.0.1:7811` | host:port | models, infra | 否 |
 | `MOMO_TTS_PROVIDER` | TTS 后端 | `kokoro` | `edge`/`kokoro`/`f5`/`cosyvoice3`/`sovits` | models | 否 |
 | `MOMO_TTS_DEVICE` | TTS 推理设备 | `cuda` | `cuda`/`cpu`/`mps` | models | 否 |
@@ -71,6 +74,7 @@ flowchart LR
 | `MOMO_TTS_VOICE_REF` | 克隆用参考音频路径 | 空 | path | models | 否 |
 | `MOMO_TTS_MODEL_DIR` | SFT 克隆产物目录（灰度切换/回滚指向） | 空 | path | models | 否 |
 | `MOMO_TTS_LANG` | 合成默认语言 | `auto` | `zh`/`en`/`ja`/`auto` | models | 否 |
+| `MOMO_TTS_API_KEY` | `POST /v1/audio/speech` 鉴权 key（`Authorization: Bearer` 头）；空=不校验 | 空 | str | models | **是** |
 | `MOMO_COSYVOICE3_HOME` | FunAudioLLM/CosyVoice 源码 checkout（官方推理栈；含 third_party/Matcha-TTS 子模块） | 空 | path | models | 否 |
 | `MOMO_COSYVOICE3_PYTHON` | cosyvoice3 隔离 venv/conda 解释器（官方栈不走本包 venv） | 空 | path | models | 否 |
 | `MOMO_MEMORY_ENABLED`（记忆） | 记忆检索开关 | `false` | bool | models | 否 |
@@ -185,6 +189,7 @@ HF_ENDPOINT=https://hf-mirror.com   # laptop 必须
 
 ## 4. 敏感项与安全
 
+- **敏感清单**：`MOMO_LLM_API_KEY`、`MOMO_VISION_API_KEY`、`MOMO_WEB_TOKEN`、`MOMO_UI_TOKEN`、`MOMO_DATA_KEEP_AUDIO`、`MOMO_ASR_API_KEY`、`MOMO_TTS_API_KEY`（后续新增一律按"值即密钥/隐私开关"判断）。
 - **敏感数据（非 key）**：`MOMO_DATA_KEEP_AUDIO=on` 时落盘的原始麦音频属隐私数据——key 本身只是开关，但其产物按敏感数据同等纪律处理（短期保留、仅 ASR 排错用途、到期清理、不外传）。
 - `.env` 已在各仓 `.gitignore`；`.env.example` 中敏感项**只留空值占位**，禁止提交真实 key。
 - 日志/诊断输出对敏感值打码（显示前 4 位 + `…`）；`momoctl doctor` 只做"是否设置"检查，不回显。

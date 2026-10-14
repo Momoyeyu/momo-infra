@@ -6,6 +6,8 @@ export const canonicalRoutes = Object.freeze({
   'research.md': '/guide/research',
   'decisions.md': '/guide/decisions',
   'config.md': '/guide/config',
+  'gateway.md': '/guide/gateway',
+  'provider-protocol.md': '/guide/provider-protocol',
   'momo-infra.md': '/guide/momo-infra',
   'momo-models.md': '/guide/momo-models',
   'voice-clone.md': '/guide/voice-clone',

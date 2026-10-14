@@ -4,6 +4,7 @@
 """
 
 import asyncio
+import hmac
 import json
 import time
 from collections.abc import Awaitable, Callable
@@ -70,6 +71,47 @@ def _error_frame(code: str, message: str, **attribution: Any) -> dict:
         "message": message,
         **{k: v for k, v in attribution.items() if k in _ERROR_ATTR_FIELDS and v is not None},
     }
+
+
+# ---------- provider 接入面共用（provider-protocol.md） ----------
+
+
+def openai_error(
+    status_code: int,
+    message: str,
+    *,
+    type_: str = "invalid_request_error",
+    param: str | None = None,
+    code: str | None = None,
+) -> JSONResponse:
+    """OpenAI 形态错误信封：`{"error":{message,type,param,code}}`。"""
+    return JSONResponse(
+        {"error": {"message": message, "type": type_, "param": param, "code": code}},
+        status_code=status_code,
+    )
+
+
+def bearer_ok(request: Request, key: str) -> bool:
+    """`Authorization: Bearer <key>` 常量时间比对；`key` 非空时调用。"""
+    auth = request.headers.get("authorization") or ""
+    scheme, _, token = auth.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return False
+    return hmac.compare_digest(token.strip(), key)
+
+
+def ws_token_ok(ws: WebSocket, key: str) -> bool:
+    """WS 鉴权（Deepgram 对齐）：`Authorization: Token <key>` / `Bearer <key>` 头，
+    或 `?token=` / `?access_token=` query；常量时间比对。"""
+    auth = ws.headers.get("authorization") or ""
+    scheme, _, token = auth.partition(" ")
+    if scheme.lower() in {"token", "bearer"} and token and hmac.compare_digest(token.strip(), key):
+        return True
+    for param in ("token", "access_token"):
+        q = ws.query_params.get(param)
+        if q and hmac.compare_digest(q, key):
+            return True
+    return False
 
 
 def msg_attribution(msg: dict) -> dict[str, Any]:
