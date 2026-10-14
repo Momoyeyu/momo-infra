@@ -1,0 +1,37 @@
+name: ci-site
+
+# site 门禁：pnpm test + pnpm build。docs/** 纳入触发面——guide 页经 include
+# 消费 canonical docs，docs 变更同样可能打坏 build。
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - '.github/workflows/ci-site.yml'
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - '.github/workflows/ci-site.yml'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm build
