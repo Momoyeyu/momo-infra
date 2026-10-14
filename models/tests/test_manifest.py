@@ -70,6 +70,7 @@ files = []
 """
 
 # GitHub-only 上游：source = "url" 走逐文件直链，不经 HF_ENDPOINT。
+_GH_URL = "https://raw.githubusercontent.com/owner/repo/master/w.onnx"
 MANIFEST_URL_SOURCE = f"""
 [[model]]
 name = "gh-only"
@@ -78,6 +79,7 @@ revision = "master"
 dest = "owner/repo"
 source = "url"
 files = [
+  {{ path = "w.onnx", url = "{_GH_URL}", sha256 = "{SHA_A}" }},
 ]
 """
 
@@ -158,6 +160,7 @@ def test_load_manifest_url_source(tmp_path: Path) -> None:
     """source = "url" 条目解析出直链字段；缺省条目 source = "hf"。"""
     e = load_manifest(_write_manifest(tmp_path, MANIFEST_URL_SOURCE))[0]
     assert e.source == "url"
+    assert e.files[0].url == _GH_URL
 
     default = load_manifest(_write_manifest(tmp_path, MANIFEST_NO_LICENSE))[0]
     assert default.source == "hf"
