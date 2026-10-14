@@ -154,6 +154,7 @@ MOMO_ASR_MODEL=sense-voice-small-int8   # MANIFEST 条目名（其 dest 即模�
 MOMO_ASR_THREADS=4
 MOMO_VAD_PROVIDER=silero
 MOMO_VAD_SILENCE_MS=250
+MOMO_ASR_API_KEY=              # 敏感：/v1/listen 鉴权（Token 头或 ?token=）；空=不校验
 MOMO_TTS_LISTEN=127.0.0.1:7811
 MOMO_TTS_PROVIDER=kokoro       # 目标 cosyvoice3；部署需求待实测
 MOMO_TTS_DEVICE=cuda
@@ -161,6 +162,7 @@ MOMO_TTS_VOICE=              # 音色名（后端各自解释；空=按 MOMO_TTS
 MOMO_TTS_VOICE_REF=
 MOMO_TTS_MODEL_DIR=            # SFT 克隆产物目录（灰度切换/回滚）
 MOMO_TTS_LANG=auto
+MOMO_TTS_API_KEY=              # 敏感：/v1/audio/speech 鉴权（Bearer 头）；空=不校验
 MOMO_COSYVOICE3_HOME=          # FunAudioLLM/CosyVoice 源码 checkout（官方推理栈）
 MOMO_COSYVOICE3_PYTHON=        # cosyvoice3 隔离 venv/conda 解释器
 MOMO_MEMORY_ENABLED=false
