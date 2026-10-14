@@ -1,0 +1,53 @@
+# momoctl gateway 配置样例 —— 复制为 gateway.toml 后按部署改值。
+# 语义与字段全集见 docs/01-architecture/gateway.md §2/§3。
+
+# ===== 全局策略 =====
+listen = "127.0.0.1:7830"          # 监听地址；--listen / MOMO_GATEWAY_LISTEN 覆盖
+request_timeout_ms = 60000         # 单次上游请求超时
+max_attempts = 3                   # 单请求最大尝试次数（含首次）
+cooldown_threshold = 3             # 连续失败达到即熔断
+cooldown_ms = 30000                # 熔断冷却时长
+health_interval_ms = 10000         # 后台探测周期；0=关闭
+
+# ===== LLM backends：priority 分组内 weight 加权轮询 =====
+# 主力组：mac-studio vLLM + laptop mlx_lm 互为容灾。
+[[llm.backends]]
+name = "mac-studio-vllm"
+endpoint = "http://mac-studio:7820"
+priority = 0
+weight = 2
+health_path = "/healthz"
+
+[[llm.backends]]
+name = "laptop-mlx"
+endpoint = "http://127.0.0.1:7821"
+priority = 0
+weight = 1
+
+# 兜底组：DeepSeek API（主力组全熔断时进入；api_key 用 ${} 从 env 注入，不明文入库）。
+# [[llm.backends]]
+# name = "deepseek"
+# endpoint = "https://api.deepseek.com"
+# priority = 1
+# api_key = "${DEEPSEEK_API_KEY}"
+# health_path = "/models"
+
+# ===== ASR upstream：透明反代（WS upgrade 透传 + HTTP 兜底） =====
+# 对外默认路径 /v1/listen（Deepgram 形态）；path 字段可改写上游路径。
+[asr]
+paths = ["/v1/listen"]
+
+[[asr.upstream]]
+name = "svc-asr"
+endpoint = "ws://127.0.0.1:7810"
+health_path = "/healthz"
+# path = "/ws"   # 上游 WS 挂在 /ws 时取消注释
+
+# ===== TTS upstream：透明反代 =====
+[tts]
+paths = ["/v1/audio/speech"]
+
+[[tts.upstream]]
+name = "svc-tts"
+endpoint = "http://127.0.0.1:7811"
+health_path = "/healthz"

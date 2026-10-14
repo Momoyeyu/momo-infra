@@ -94,6 +94,8 @@ flowchart LR
 | `MOMO_BRAIN_BACKEND` | 大脑后端类型 | `mlx` | `mlx`/`vllm`/`deepseek`/`local` | infra | 否 |
 | `MOMO_BRAIN_MODEL_PATH` | 本地模型目录 | `~/models/Qwen3-8B-4bit` | path | infra | 否 |
 | `MOMO_BRAIN_PORT` | 大脑服务端口（对应 `MOMO_LLM_ENDPOINT`） | `7820` | port | infra | 否 |
+| `MOMO_GATEWAY_LISTEN` | `momoctl gateway` 监听地址；`--listen` 覆盖 | `127.0.0.1:7830` | addr | infra | 否 |
+| `MOMO_GATEWAY_CONFIG` | `momoctl gateway` TOML 配置路径（`[[llm.backends]]`/`[[asr.upstream]]`/`[[tts.upstream]]`，见 `gateway.md`）；`--config` 覆盖 | `gateway.toml` | path | infra | 否 |
 
 降级档本地脑（laptop 上 llama.cpp GGUF）同样监听 `MOMO_BRAIN_PORT`（默认 7820）；切换只是 `MOMO_LLM_ENDPOINT` 换 host，端口不变。
 

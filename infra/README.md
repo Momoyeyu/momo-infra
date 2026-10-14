@@ -23,6 +23,7 @@ momoctl config check [--root PATH]   # env schema 漂移检查
 momoctl web [--listen ADDR]          # Web 控制台（默认 127.0.0.1:7900；非 loopback 需 MOMO_WEB_TOKEN）
 momoctl jobs submit [--kind train|pull|serve] [--desc TEXT] -- CMD [ARGS...]
 momoctl jobs list | jobs status ID | jobs log ID [-n N] [-f] | jobs cancel ID
+momoctl gateway [--listen ADDR] [--config PATH]   # 统一对外 gateway（LLM failover/LB + ASR/TTS 反代；配置样例 gateway.example.toml）
 ```
 
 全局 flag：`--json`（单一 JSON 对象，schema 版本化）、`--env-file PATH`。无 `-v/-vv`；日志级别由 `MOMO_LOG_LEVEL` 控制（内置默认 `info`）。

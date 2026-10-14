@@ -9,6 +9,7 @@ pub mod cmds;
 pub mod config_schema;
 pub mod env_cfg;
 pub mod env_file;
+pub mod gateway;
 pub mod jobs;
 pub mod manifest;
 pub mod models;
@@ -42,6 +43,7 @@ pub fn run(cli: Cli) -> i32 {
         Command::Config(args) => cmds::config::run(args, &ctx),
         Command::Web(args) => cmds::web::run(args, &ctx),
         Command::Jobs(args) => cmds::jobs::run(args, &ctx),
+        Command::Gateway(args) => cmds::gateway::run(args, &ctx),
     };
     finish(result)
 }

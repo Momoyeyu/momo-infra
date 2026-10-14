@@ -17,17 +17,25 @@ clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.9"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "stream", "json"] }
 thiserror = "2"
 dotenvy = "0.15"
 owo-colors = "4"
 sha2 = "0.10"
 ulid = "1"
+axum = { version = "0.8.9", features = ["ws"] }
 # web server 运行时：rt-multi-thread + TcpListener + Ctrl-C + broadcast(SSE) + time(SSE 轮询)。
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 # /api/events SSE 复用 broadcast::Receiver。
 tokio-stream = { version = "0.1.19", features = ["sync"] }
 # SPA 编译期内嵌（infra/web/），不依赖部署目录。
 include_dir = "0.7.4"
+# gateway：流式转发/WS 中继。TLS 一律 rustls（禁 openssl）。
+futures-util = "0.3"
+http = "1"
+http-body-util = "0.1"
+# 版本与 axum ws feature 内部依赖对齐，共享同一 tungstenite Message 类型。
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
 
 # 进程探活/信号走 syscall（serve/proc.rs），不 spawn 外部 kill/ps。
 [target.'cfg(unix)'.dependencies]

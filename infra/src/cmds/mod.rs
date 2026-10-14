@@ -3,6 +3,7 @@
 pub mod bench;
 pub mod config;
 pub mod doctor;
+pub mod gateway;
 pub mod gc;
 pub mod jobs;
 pub mod pipeline;

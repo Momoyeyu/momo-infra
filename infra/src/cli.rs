@@ -1,3 +1,4 @@
+//! clap 命令定义：全局 `--json` / `--env-file` + 十个子命令。
 //! 签名对齐 momo-docs `02-repos/momo-infra.md`「子命令清单」。
 
 use std::path::PathBuf;
@@ -10,6 +11,7 @@ use crate::jobs::{JobExecutor, JobKind};
 #[command(
     name = "momoctl",
     version,
+    about = "momo ops CLI: doctor / pull / serve / switch / bench / gc / config / web / jobs / gateway"
 )]
 pub struct Cli {
     /// Emit a single JSON object (versioned schema, for CI/scripts)
@@ -46,6 +48,8 @@ pub enum Command {
     Web(WebArgs),
     /// Job runner: submit/list/status/log/cancel via local exec (state-dir store)
     Jobs(JobsArgs),
+    /// Unified gateway: OpenAI-compatible LLM failover/LB + ASR/TTS reverse proxy
+    Gateway(GatewayArgs),
 }
 
 /// 部署档位（与 MOMO_PROFILE 取值一致）。
@@ -182,6 +186,18 @@ pub struct WebArgs {
     /// non-loopback requires MOMO_WEB_TOKEN, else refuse to start (exit 2)
     #[arg(long, value_name = "ADDR", default_value = "127.0.0.1:7900")]
     pub listen: String,
+}
+
+#[derive(Debug, Args)]
+pub struct GatewayArgs {
+    /// Listen address (default: MOMO_GATEWAY_LISTEN > config `listen` > 127.0.0.1:7830)
+    #[arg(long, value_name = "ADDR")]
+    pub listen: Option<String>,
+
+    /// Gateway TOML config (default: MOMO_GATEWAY_CONFIG > ./gateway.toml);
+    /// schema: [[llm.backends]] / [[asr.upstream]] / [[tts.upstream]], see gateway.md
+    #[arg(long, value_name = "PATH")]
+    pub config: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]

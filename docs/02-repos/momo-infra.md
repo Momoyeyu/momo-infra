@@ -37,6 +37,7 @@
 | `config check` | env schema 漂移检查（`config.schema.toml` ↔ 三侧 `.env.example` / `config.md`） | 已实现 |
 | `web` | Web 控制台基座：axum server + include_dir 内嵌 SPA + `/api` 路由树 + SSE | 已实现 |
 | `jobs submit\|list\|status\|log\|cancel\|recover` | job runner：exec_local + exec_ssh 执行器、状态机、日志 tail；store 落 state dir（`jobs exec` 为内部 helper） | 已实现 |
+| `gateway` | 统一对外 gateway：`/v1/*` → llm 池（priority 分组 + 组内加权轮询 + 失败 failover/熔断）；`asr.paths`/`tts.paths` 透明反代（ASR WS upgrade 帧中继）；`/healthz` `/readyz` `/metrics` 本地自报告；架构与配置见 `docs/01-architecture/gateway.md` | 已实现 |
 
 ### 子命令参数
 
@@ -86,6 +87,8 @@
 | `jobs log` | `-f, --follow` | off | 跟随新增输出；job 进终态且日志排空后退出 |
 | `jobs cancel` | `ID` | 必填 | 非终态 → canceling + SIGTERM→SIGKILL（本地 pid）/ 远端 TERM→KILL（ssh）；终态幂等 |
 | `jobs recover` | `ID` | 必填 | recovering/未认领的 ssh job 重挂 runner（按 remote job id 重查，不重复 launch） |
+| `gateway` | `--listen ADDR` | `MOMO_GATEWAY_LISTEN` > 配置 `listen` > `127.0.0.1:7830` | 监听地址 |
+| `gateway` | `--config PATH` | `MOMO_GATEWAY_CONFIG` > `./gateway.toml` | gateway TOML 配置（`[[llm.backends]]`/`[[asr.upstream]]`/`[[tts.upstream]]`，样例 `infra/gateway.example.toml`） |
 
 ### 全局 flag
 

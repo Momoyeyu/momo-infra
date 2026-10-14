@@ -23,12 +23,24 @@ flowchart LR
 
 1. [momo-infra 定位](./00-context/overview.md)
 2. [配置规范](./01-architecture/config.md)
+3. [gateway 架构](./01-architecture/gateway.md)
+4. [infra 模块](./02-repos/momo-infra.md)
+5. [models 模块](./02-repos/momo-models.md)
+6. [声线训练轨道](./03-tracks/voice-clone.md)
+7. [部署手册](./04-ops/deployment.md)
+8. [降级手册](./04-ops/degradation.md)
+9. [模型获取](./04-ops/model-fetch.md)
+10. [借用机器规则](./04-ops/borrowed-etiquette.md)
+11. [架构决策](./00-context/decisions.md)
+12. [技术研究](./00-context/research.md)
+13. [GitHub Project 管理](./05-management/github-project.md)
 
 ## 目录
 
 | 目录 | 内容 |
 |---|---|
 | `00-context/` | 定位、研究、infra/模型侧 ADR |
+| `01-architecture/` | `MOMO_` env 配置契约、gateway 架构 |
 | `02-repos/` | infra 与 models 模块设计 |
 | `03-tracks/` | 声线训练轨道（zero-shot/SFT + frozen gate） |
 | `04-ops/` | 部署、降级、模型获取、借用机器纪律 |
