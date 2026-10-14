@@ -1,7 +1,7 @@
 Required Notice: Copyright (c) 2026 Momoyeyu (https://github.com/Momoyeyu)
 
-momo-models 是 momo monorepo 的子模块；本目录代码与仓库其余代码同一许可，
-以 PolyForm Noncommercial License 1.0.0 发布，许可全文见仓库根 LICENSE.md。
+models/ 是 momo-infra 仓库的子模块；本目录代码与仓库其余代码同一许可，
+以 MIT License 发布，许可全文见仓库根 LICENSE.md。
 
-例外：模型权重、Runtime 与第三方素材各自服从其上游许可（manifest 逐条
-声明 license；素材边界见 docs/00-context/resources.md），不受本许可覆盖。
+例外：模型权重不适用本许可，分别按其各自上游许可条款使用（逐条声明见
+models/MANIFEST.toml 的 license 字段）。
