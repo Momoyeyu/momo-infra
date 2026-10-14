@@ -1,0 +1,31 @@
+# 声线盲听固定测试句集：15 句（docs/04-tracks/voice-clone.md「零样本评估流程」）
+# 覆盖：中文日常×4、情感×2、英文×2、日文×2、code-switch×2、长难句/数字×2、疑问×1。
+# 参考音固定 3 段（平静/开心/抱怨），选自 T1 素材，路径按实落素材回填。
+version: 1
+references:
+  - { id: ref_calm, path: "voice/ref/ref_calm.wav", mood: "calm" }
+  - { id: ref_happy, path: "voice/ref/ref_happy.wav", mood: "happy" }
+  - { id: ref_grumble, path: "voice/ref/ref_grumble.wav", mood: "grumble" }
+sentences:
+  # 中文日常 ×4
+  - { id: s01, lang: zh, text: "今天下午要不要一起去楼下买杯咖啡？" }
+  - { id: s02, lang: zh, text: "我先把锅洗了，等会儿再去晾衣服。" }
+  - { id: s03, lang: zh, text: "那个快递好像中午就到了，记得去拿。" }
+  - { id: s04, lang: zh, text: "周末如果下雨的话，我们就在家看电影吧。" }
+  # 情感句 ×2
+  - { id: s05, lang: zh, emotion: happy, text: "太好了！我等这个消息等了好久了！" }
+  - { id: s06, lang: zh, emotion: grumble, text: "又加班，这周第三次了，真是受够了。" }
+  # 英文 ×2
+  - { id: s07, lang: en, text: "Could you grab me a glass of water when you get up?" }
+  - { id: s08, lang: en, text: "I finally finished the book you recommended last month." }
+  # 日文 ×2
+  - { id: s09, lang: ja, text: "今日は少し疲れたので、早めに休みます。" }
+  - { id: s10, lang: ja, text: "駅前のパン屋さん、新しいのが出たらしいよ。" }
+  # code-switch 混句 ×2
+  - { id: s11, lang: zh-en, text: "这个 deadline 真的太紧了，我今晚得 overtime 一下。" }
+  - { id: s12, lang: zh-ja, text: "那家店的ラーメン很好吃，下次带你一起去。" }
+  # 长难句/数字 ×2
+  - { id: s13, lang: zh, text: "2026 年 11 月 1 日下午 3 点 45 分，会议室 B203 的评审会改到线上进行了。" }
+  - { id: s14, lang: zh, text: "虽然他嘴上说不在意，但我看得出来，他为这件事其实已经准备了整整三个星期。" }
+  # 疑问句 ×1
+  - { id: s15, lang: zh, text: "你刚才是不是想说，其实你不太想去？" }

@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- momo Web 控制台 SPA：无构建链的 ES module 页面，由 infra/web 编译期内嵌。
+     路由（/ /components /models /train /config）由 assets/app.js 前端路由分发；
+     服务端对非 /api 未命中一律回退本文件（web/spa.rs）。 -->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>momo console</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <script type="module" src="/assets/app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="brand">momo console</span>
+      <nav class="tabs" id="nav">
+        <a href="/" data-route="/">概览</a>
+        <a href="/components" data-route="/components">组件</a>
+        <a href="/models" data-route="/models">模型</a>
+        <a href="/train" data-route="/train">训练</a>
+        <a href="/config" data-route="/config">配置</a>
+      </nav>
+      <span class="topbar-right" id="topbar-right"></span>
+    </header>
+
+    <!-- token 未设时仅 loopback 放行；MOMO_WEB_TOKEN 已设时 401 弹此框录入 -->
+    <div id="token-modal" class="modal hidden">
+      <form id="token-form" class="modal-box">
+        <h2>需要访问令牌</h2>
+        <p>
+          <code>MOMO_WEB_TOKEN</code> 已启用，请输入 token 继续。
+          仅保存在本页会话（sessionStorage）。
+        </p>
+        <input
+          id="token-input"
+          type="password"
+          autocomplete="off"
+          placeholder="MOMO_WEB_TOKEN"
+        />
+        <div class="modal-actions">
+          <button type="submit" class="btn primary">保存并重试</button>
+        </div>
+      </form>
+    </div>
+
+    <main id="app"><p class="muted">loading…</p></main>
+  </body>
+</html>

@@ -3,6 +3,18 @@ site/docs/.vitepress/dist
 site/docs/.vitepress/cache/
 .DS_Store
 
+# Rust（infra/）
+target/
+
+# Python（models/）
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+
 # env：只入库 .env.example
 .env
 .env.*

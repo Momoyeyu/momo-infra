@@ -1,0 +1,32 @@
+name: ci-config
+
+# env schema 漂移门禁：config.schema.toml ↔ 三侧 .env.example ↔ config.md。
+# 任一文件变更都可能引入漂移，故路径过滤覆盖全部输入与实现。
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'config.schema.toml'
+      - '**/.env.example'
+      - 'docs/**'
+      - 'infra/**'
+      - '.github/workflows/ci-config.yml'
+  pull_request:
+    paths:
+      - 'config.schema.toml'
+      - '**/.env.example'
+      - 'docs/**'
+      - 'infra/**'
+      - '.github/workflows/ci-config.yml'
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: infra
+      - run: cargo run --manifest-path infra/Cargo.toml -- config check

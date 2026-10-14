@@ -1,0 +1,112 @@
+# MANIFEST.toml —— 模型下载清单（口径见 src/momo_models/manifest.py 与
+# docs/02-repos/momo-models.md「provider 与产物」）。
+#
+# 权重实体在 $MOMO_MODELS_DIR（默认 ~/.cache/momo/models，不入库），
+# dest 镜像 <owner>/<repo> 布局。下载与校验由 momo-infra `momoctl pull` 执行；
+# 运行时 provider 只读本地路径，sha256 校验不过 → readyz 拒绝就绪。
+#
+# license：结构化许可（spdx/source；非 SPDX 许可另带 name），逐条按上游仓库核对。
+#
+# source：条目下载源，`hf`（缺省）经 HF_ENDPOINT 拼 `<endpoint>/<repo_id>/resolve/
+# <revision>/<path>`；`url` 为逐文件直链（files[].url 必填，如 GitHub raw），
+# 不经 HF_ENDPOINT。hf 条目下 files[].url 可作单文件覆盖。
+#
+# sha256 口径：LFS 文件取 HF tree API 的 `lfs.oid`（即内容 sha256）；
+# 非 LFS 小文件按 hf-mirror resolve 实下载后本地 sha256sum 得出。
+
+[[model]]
+name = "cosyvoice3-0.5b"
+repo_id = "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+revision = "main"
+dest = "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+notes = "TTS 首选目标；instruct 控情感，双向流式官方标称 150ms；显存需求待实测"
+license = { spdx = "apache-2.0", source = "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512" }
+files = [
+  { path = "cosyvoice3.yaml", sha256 = "f5a6b2c6f05139d0f18861a1fe506f751e787026b77c05f7e8fef9f8a4405965", size = 6934 },
+  { path = "config.json", sha256 = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a", size = 2 },
+  { path = "configuration.json", sha256 = "c502b6328c67638b401df8dd05de89e9e8d1cff9cd0ada10dfbdbe13556c20de", size = 47 },
+  { path = "llm.pt", sha256 = "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970", size = 2024669519 },
+  { path = "flow.pt", sha256 = "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b", size = 1329116148 },
+  { path = "hift.pt", sha256 = "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65", size = 83202622 },
+  { path = "campplus.onnx", sha256 = "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73", size = 28303423 },
+  { path = "speech_tokenizer_v3.onnx", sha256 = "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d", size = 969451503 },
+  { path = "CosyVoice-BlankEN/config.json", sha256 = "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185", size = 659 },
+  { path = "CosyVoice-BlankEN/generation_config.json", sha256 = "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6", size = 242 },
+  { path = "CosyVoice-BlankEN/tokenizer_config.json", sha256 = "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc", size = 1287 },
+  { path = "CosyVoice-BlankEN/merges.txt", sha256 = "ac8ff86a72bee70828fbc1119bc4398c6f3a9a6e490d7b0dbe917be025478bd0", size = 1402109 },
+  { path = "CosyVoice-BlankEN/vocab.json", sha256 = "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", size = 2776833 },
+  { path = "CosyVoice-BlankEN/model.safetensors", sha256 = "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96", size = 988097824 },
+  # 上游还有可选件未列入：llm.rl.pt（RL 版 LLM）、
+  # flow.decoder.estimator.fp32.onnx / speech_tokenizer_v3.batch.onnx（onnx 导出路径）
+]
+
+[[model]]
+name = "kokoro-82m"
+repo_id = "hexgrad/Kokoro-82M"
+revision = "main"
+dest = "hexgrad/Kokoro-82M"
+notes = "TTS 实测兜底：首包 209ms、RTF 0.023、VRAM 0.76GB（2026-10-10, 3070 Laptop）"
+license = { spdx = "apache-2.0", source = "https://huggingface.co/hexgrad/Kokoro-82M" }
+files = [
+  { path = "kokoro-v1_0.pth", sha256 = "496dba118d1a58f5f3db2efc88dbdc216e0483fc89fe6e47ee1f2c53f18ad1e4", size = 327212226 },
+  { path = "config.json", sha256 = "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f", size = 2351 },
+  # 默认音色：af_heart（en）+ zf_xiaoxiao（zh）+ jf_alpha（ja）；其余 voices/*.pt 按声线选用补齐
+  { path = "voices/af_heart.pt", sha256 = "0ab5709b8ffab19bfd849cd11d98f75b60af7733253ad0d67b12382a102cb4ff", size = 523425 },
+  { path = "voices/zf_xiaoxiao.pt", sha256 = "cfaf6f2ded1ee56f1ff94fcd2b0e6cdf32e5b794bdc05b44e7439d44aef5887c", size = 523440 },
+  { path = "voices/jf_alpha.pt", sha256 = "1bf4c9dc69e45ee46183b071f4db766349aac5592acbcfeaf051018048a5d787", size = 523425 },
+]
+
+[[model]]
+name = "f5-tts-v1"
+repo_id = "SWivid/F5-TTS"
+revision = "main"
+dest = "SWivid/F5-TTS"
+notes = "F5-TTS v1 零样本克隆（实测兜底）：RTF 0.535、VRAM 0.8GB；参考音需干净单人声"
+# 权重为 CC-BY-NC-4.0（非商用）；上游代码仓 SWivid/F5-TTS 自身为 MIT。
+license = { spdx = "cc-by-nc-4.0", source = "https://huggingface.co/SWivid/F5-TTS" }
+files = [
+  # F5TTS_v1_Base；vocos 声码器在 charactr/vocos-mel-24khz 仓，见 vocos-mel-24khz 条目
+  { path = "F5TTS_v1_Base/model_1250000.safetensors", sha256 = "670900fd14e6c458b95da6e9ed317cdb20dbaf7a1c02ac06a05475a9d32b6a38", size = 1348435761 },
+  { path = "F5TTS_v1_Base/vocab.txt", sha256 = "2a05f992e00af9b0bd3800a8d23e78d520dbd705284ed2eedb5f4bd29398fa3c", size = 13800 },
+]
+
+[[model]]
+name = "vocos-mel-24khz"
+repo_id = "charactr/vocos-mel-24khz"
+revision = "main"
+dest = "charactr/vocos-mel-24khz"
+notes = "vocos mel→24kHz 声码器（config.yaml + pytorch_model.bin）；f5-tts-v1 推理必需，load_vocoder 的默认 vocoder"
+license = { spdx = "mit", source = "https://huggingface.co/charactr/vocos-mel-24khz" }
+files = [
+  { path = "config.yaml", sha256 = "da9033922f969a47f0c160010226919e59f27761fd5066f3828d46de6650b0fc", size = 461 },
+  { path = "pytorch_model.bin", sha256 = "97ec976ad1fd67a33ab2682d29c0ac7df85234fae875aefcc5fb215681a91b2a", size = 54365991 },
+]
+
+[[model]]
+name = "sense-voice-small-int8"
+repo_id = "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
+revision = "main"
+dest = "sherpa-onnx/sense-voice-zh-en-ja-ko-yue-2024-07-17"
+notes = "ASR 基线（纯 CPU，RTF 0.040）：zh/en/ja/ko/yue + 自动语言 + 情感/事件标记；onnx 与 tokens.txt 必须配套"
+# 上游为自定义 FunASR 模型许可（非 SPDX）；转换仓 csukuangfj/sherpa-onnx-* 指向同一许可。
+license = { spdx = "other", name = "FunASR Model License v1.1", source = "https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE" }
+files = [
+  { path = "model.int8.onnx", sha256 = "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51", size = 239233841 },
+  { path = "tokens.txt", sha256 = "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc", size = 315894 },
+]
+
+[[model]]
+name = "silero-vad"
+repo_id = "snakers4/silero-vad"
+revision = "master"
+# 上游仅 GitHub（HF 无 snakers4/silero-vad）：source = "url" 走逐文件直链，
+# repo_id/revision 只作 dest/models.lock 身份标识，不参与 URL 拼接。
+source = "url"
+dest = "snakers4/silero-vad"
+notes = "VAD 断句（不做识别）；onnx 权重供 sherpa-onnx 或 silero-vad 包加载"
+license = { spdx = "mit", source = "https://github.com/snakers4/silero-vad/blob/master/LICENSE" }
+files = [
+  # 源文件为 src/silero_vad/data/silero_vad.onnx @ master（非 LFS，raw 直链即内容）；
+  # sha256/size 已按实下载核对。
+  { path = "silero_vad.onnx", url = "https://raw.githubusercontent.com/snakers4/silero-vad/master/src/silero_vad/data/silero_vad.onnx", sha256 = "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3", size = 2327524 },
+]

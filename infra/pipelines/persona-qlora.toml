@@ -1,0 +1,63 @@
+# pipeline: persona-qlora —— 主脑 QLoRA 编排（issue #41；docs/04-tracks/persona.md「QLoRA 计划」）
+# 基座跟着主脑走（当前 Qwen3-30B-A3B-4bit / 8-14B 备选，ADR-024）；算力 4090D 经 ssh
+# 派发（bigstrong 夜间窗口须恢复常驻 vLLM，05-ops/borrowed-etiquette.md）。
+name = "persona-qlora"
+description = "persona QLoRA: build dataset -> regression-20 baseline -> train -> frozen gate -> register"
+
+# 产物落点：${MOMO_MODELS_DIR}/persona/ft-qwen-<yyyymmdd>/（adapter 目录，
+# 部署按 persona.md 以 adapter 方式挂载；models.lock 登记后受引用保护）。
+artifact_dir = "persona/ft-qwen-{date}"
+
+[vars.train_host]
+description = "training host ssh alias (4090D box)"
+default = "bigstrong"
+
+[vars.remote_root]
+description = "momo repo checkout path on the training host"
+default = "~/momo"
+
+[[step]]
+name = "build-dataset"
+exec = "local"
+workdir = "models"
+command = "uv run python training/persona/build_dataset.py --output {run_dir}/dataset"
+artifact = "{run_dir}/dataset"
+
+[[step]]
+name = "baseline-regression"
+exec = "local"
+workdir = "models"
+command = "uv run python eval/persona_regression.py --regression {repo_root}/evals/persona/regression-20.yaml --output {run_dir}/baseline"
+artifact = "{run_dir}/baseline"
+
+[[step]]
+name = "upload-dataset"
+exec = "local"
+command = "rsync -az {run_dir}/dataset/ {var:train_host}:{var:remote_root}/data/persona-qlora-{run_id}/dataset/"
+
+[[step]]
+name = "lora-qwen"
+exec = "ssh"
+ssh_host = "{var:train_host}"
+workdir = "{var:remote_root}/models"
+command = "uv run python training/persona/lora_qwen.py --data {var:remote_root}/data/persona-qlora-{run_id}/dataset --output {var:remote_root}/data/persona-qlora-{run_id}/artifact"
+retries = 1
+
+[[step]]
+name = "fetch-artifact"
+exec = "local"
+command = "mkdir -p {artifact_dir} && rsync -az {var:train_host}:{var:remote_root}/data/persona-qlora-{run_id}/artifact/ {artifact_dir}/"
+artifact = "{artifact_dir}"
+retries = 1
+
+[[step]]
+name = "frozen-gate"
+exec = "local"
+workdir = "models"
+command = "uv run python eval/persona_regression.py --regression {repo_root}/evals/persona/regression-20.yaml --adapter {artifact_dir} --output {run_dir}/gate"
+artifact = "{run_dir}/gate"
+
+[[step]]
+name = "register"
+exec = "register"
+artifact = "{artifact_dir}"

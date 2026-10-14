@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.env.local
+.env.normal
+.env.degraded
+.venv/
+__pycache__/
+*.egg-info/
+dist/
+.ruff_cache/
+.pytest_cache/
+
+# 仓内 models/ 只入库 MANIFEST.toml；权重实体在 $MOMO_MODELS_DIR
+models/*
+!models/MANIFEST.toml
+data/

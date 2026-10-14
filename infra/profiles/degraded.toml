@@ -1,0 +1,54 @@
+# 降级档组件表：laptop 单机全栈。
+# 大脑二选一（deployment.md §degraded.env）：
+#   A) MOMO_LLM_ENDPOINT=https://api.deepseek.com/v1 → brain 组件探活，llama-server 跳过
+#   B) MOMO_LLM_ENDPOINT=http://127.0.0.1:7820/v1    → serve 额外 spawn 本地 llama-server
+# 切换只是 MOMO_LLM_ENDPOINT 换 host，端口不变（config.md §2.4）。
+
+[profile]
+name = "degraded"
+description = "degraded profile: full stack on laptop; brain = DeepSeek API (external) or local llama-server :7820"
+
+# 大脑端点探活（DeepSeek 或本地 llama-server 都经 MOMO_LLM_ENDPOINT）
+[[component]]
+name = "brain"
+order = 0
+external = true
+probe_env = "MOMO_LLM_ENDPOINT"
+probe_path = "/models"
+
+# 本地小脑：仅 MOMO_LLM_ENDPOINT 指 loopback 时 spawn（指 DeepSeek 时跳过）
+[[component]]
+name = "llama-server"
+order = 5
+local_endpoint_only = true
+cmd = "llama-server"
+args = ["--model", "${MOMO_BRAIN_MODEL_PATH}", "--port", "${MOMO_BRAIN_PORT}", "--host", "127.0.0.1"]
+ready = "http://127.0.0.1:7820/v1/models"
+env = { MOMO_BRAIN_BACKEND = "local", MOMO_BRAIN_PORT = "7820" }
+
+# ASR：同正常档
+[[component]]
+name = "momo-svc-asr"
+order = 10
+cwd = "../models"
+cmd = "uv"
+args = ["run", "momo-svc-asr"]
+ready = "http://127.0.0.1:7810/readyz"
+env = { MOMO_ASR_LISTEN = "127.0.0.1:7810", MOMO_ASR_MODEL = "sense-voice-small-int8", MOMO_ASR_THREADS = "4", MOMO_VAD_SILENCE_MS = "250" }
+
+# TTS：本地大脑占显存/算力时回退 Kokoro（deployment.md）
+[[component]]
+name = "momo-svc-tts"
+order = 20
+cwd = "../models"
+cmd = "uv"
+args = ["run", "momo-svc-tts"]
+ready = "http://127.0.0.1:7811/readyz"
+env = { MOMO_TTS_LISTEN = "127.0.0.1:7811", MOMO_TTS_PROVIDER = "kokoro", MOMO_TTS_DEVICE = "cpu", MOMO_TTS_LANG = "auto" }
+
+# 编排器（监听默认回环；需外部可达时在 .env 显式配置 MOMO_ORCH_LISTEN）
+[[component]]
+name = "momod"
+order = 30
+cmd = "momod"
+ready = "http://127.0.0.1:7800/readyz"

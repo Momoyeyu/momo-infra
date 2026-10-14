@@ -1,0 +1,49 @@
+[package]
+name = "momo-infra"
+version = "0.1.0"
+edition = "2021"
+description = "momo ops CLI: doctor / pull / serve / switch / bench / gc / config / web"
+
+[lib]
+name = "momo_infra"
+path = "src/lib.rs"
+
+[[bin]]
+name = "momoctl"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+thiserror = "2"
+dotenvy = "0.15"
+owo-colors = "4"
+sha2 = "0.10"
+ulid = "1"
+# web server 运行时：rt-multi-thread + TcpListener + Ctrl-C + broadcast(SSE) + time(SSE 轮询)。
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+# /api/events SSE 复用 broadcast::Receiver。
+tokio-stream = { version = "0.1.19", features = ["sync"] }
+# SPA 编译期内嵌（infra/web/），不依赖部署目录。
+include_dir = "0.7.4"
+
+# 进程探活/信号走 syscall（serve/proc.rs），不 spawn 外部 kill/ps。
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# 进程探活/强杀走 Win32 API（serve/proc.rs），不 spawn tasklist/taskkill。
+# ToolHelp：进程快照按 ppid 追溯组件后代，wrapper 死后仍能收孤儿孙进程（#149）。
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+    "Win32_System_Threading",
+    "Win32_System_Diagnostics_ToolHelp",
+] }
+
+[dev-dependencies]
+wiremock = "0.6"
+# api_contract_test 用 ServiceExt::oneshot 免端口直连 Router。
+tower = { version = "0.5", features = ["util"] }

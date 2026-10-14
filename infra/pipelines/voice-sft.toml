@@ -1,0 +1,64 @@
+# pipeline: voice-sft —— CosyVoice3 SFT 编排（issue #41；docs/04-tracks/voice-clone.md「SFT 流程」）
+# 训练实体在 models/training/，infra 只编排；4090D 经 ssh 派发（bigstrong），
+# 会话 24h 上限与 2h checkpoint 节奏属训练脚本职责（05-ops/borrowed-etiquette.md）。
+name = "voice-sft"
+description = "CosyVoice3 SFT: dataset prep -> 4090D train -> artifact fetch -> frozen gate -> register"
+
+# 产物落点：${MOMO_MODELS_DIR}/tts/ft-cosyvoice3-<yyyymmdd>/；
+# gc 按 engine 分代保留 N-1（active+rollback），models.lock 引用额外保护。
+artifact_dir = "tts/ft-cosyvoice3-{date}"
+
+# promote 激活键：写 `.env.<profile>` 的 MOMO_TTS_MODEL_DIR 指向产物目录
+# （.bak 即回滚目标；config.md §5 口径——env 变更经 `serve restart` 生效）。
+activate_env = "MOMO_TTS_MODEL_DIR"
+
+[vars.input]
+description = "raw voice material directory (T2 set, 10-60min clean single-speaker audio)"
+required = true
+
+[vars.train_host]
+description = "training host ssh alias (4090D box)"
+default = "bigstrong"
+
+[vars.remote_root]
+description = "momo repo checkout path on the training host"
+default = "~/momo"
+
+[[step]]
+name = "prepare-dataset"
+exec = "local"
+workdir = "models"
+command = "uv run python training/voice/prepare_dataset.py --input {var:input} --output {run_dir}/dataset"
+artifact = "{run_dir}/dataset"
+
+[[step]]
+name = "upload-dataset"
+exec = "local"
+command = "rsync -az {run_dir}/dataset/ {var:train_host}:{var:remote_root}/data/voice-sft-{run_id}/dataset/"
+
+[[step]]
+name = "sft-cosyvoice3"
+exec = "ssh"
+ssh_host = "{var:train_host}"
+workdir = "{var:remote_root}/models"
+command = "uv run python training/voice/sft_cosyvoice3.py --data {var:remote_root}/data/voice-sft-{run_id}/dataset --output {var:remote_root}/data/voice-sft-{run_id}/artifact"
+retries = 1
+
+[[step]]
+name = "fetch-artifact"
+exec = "local"
+command = "mkdir -p {artifact_dir} && rsync -az {var:train_host}:{var:remote_root}/data/voice-sft-{run_id}/artifact/ {artifact_dir}/"
+artifact = "{artifact_dir}"
+retries = 1
+
+[[step]]
+name = "frozen-gate"
+exec = "local"
+workdir = "models"
+command = "uv run python eval/tts_ab_test.py --model-dir {artifact_dir} --testset {repo_root}/evals/voice/testset-15.yaml --output {run_dir}/gate"
+artifact = "{run_dir}/gate"
+
+[[step]]
+name = "register"
+exec = "register"
+artifact = "{artifact_dir}"

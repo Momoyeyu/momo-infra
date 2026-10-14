@@ -1,0 +1,68 @@
+# MOMO_* env 单源 schema；字段口径与同步规则见 docs/01-architecture/config.md §6
+schema = 1
+
+key = [
+  # ===== 通用 =====
+  { name = "MOMO_ENV", type = "enum", values = ["dev", "prod"], default = "dev", readers = ["app", "models", "infra"], files = ["app", "models", "infra"], component = "common", description = "运行环境标识" },
+  { name = "MOMO_LOG_LEVEL", type = "enum", values = ["trace", "debug", "info", "warn", "error"], default = "info", readers = ["app", "models", "infra"], files = ["app", "models", "infra"], examples = { infra = "warn" }, component = "common", description = "日志级别" },
+  { name = "MOMO_LOG_FORMAT", type = "enum", values = ["pretty", "json"], default = "pretty", readers = ["app", "models", "infra"], files = ["app", "models", "infra"], component = "common", description = "日志输出格式" },
+  { name = "MOMO_PROFILE", type = "enum", values = ["normal", "degraded"], default = "normal", readers = ["infra"], files = ["app", "infra"], component = "common", description = "部署档位；infra 决定启停拓扑与健康检查对象，app/models 不直接读" },
+  { name = "MOMO_MODELS_DIR", type = "path", default = "~/.cache/momo/models", readers = ["models", "infra"], files = ["app", "models", "infra"], component = "common", description = "模型文件根目录" },
+  # ===== 编排器（app 读） =====
+  { name = "MOMO_ORCH_LISTEN", type = "string", default = "127.0.0.1:7800", readers = ["app", "infra"], files = ["app", "infra"], component = "app", description = "WS + 静态 UI 监听地址；infra doctor 探 /healthz" },
+  { name = "MOMO_UI_DIR", type = "path", default = "./web/dist", readers = ["app"], files = ["app"], component = "app", description = "前端静态目录（打包内嵌时忽略）" },
+  { name = "MOMO_PERSONA_FILE", type = "path", default = "persona/momo.yaml", readers = ["app"], files = ["app"], component = "app", description = "persona card 路径；读不到回退内嵌 card，每回合重读（热加载）" },
+  { name = "MOMO_UI_TOKEN", type = "string", default = "", sensitive = true, readers = ["app"], files = ["app"], component = "app", description = "/ws/ui hello 的期望 auth_token；desktop 启动时注入，空=standalone dev 不比对（字段仍必填）" },
+  { name = "MOMO_WEB_ORIGIN", type = "url", default = "http://localhost:5173", readers = ["app"], files = ["app"], component = "app", description = "浏览器来源（CORS/WS Origin 白名单）" },
+  { name = "MOMO_LLM_ENDPOINT", type = "url", default = "http://mac-studio.local:7820/v1", readers = ["app", "infra"], files = ["app", "infra"], examples = { infra = "http://mac-studio:7820/v1" }, component = "app", description = "大脑 OpenAI-compatible base URL；infra doctor 探 /models" },
+  { name = "MOMO_LLM_MODEL", type = "string", default = "qwen3-30b-a3b-4bit", readers = ["app", "infra"], files = ["app", "infra"], component = "app", description = "传给大脑的 model 字段" },
+  { name = "MOMO_LLM_API_KEY", type = "string", default = "", sensitive = true, readers = ["app", "infra"], files = ["app", "infra"], component = "app", description = "大脑端点鉴权 key；本地可为空" },
+  { name = "MOMO_LLM_TIMEOUT_MS", type = "int", default = "30000", readers = ["app"], files = ["app"], component = "app", description = "LLM 请求总超时（ms）" },
+  { name = "MOMO_EMBED_ENDPOINT", type = "url", default = "ws://127.0.0.1:7812/ws", readers = ["app"], files = ["app"], component = "app", description = "embed 服务 WS 连接地址（编排器→momo-svc-embed，记忆）" },
+  { name = "MOMO_BARGEIN_ENABLED", type = "bool", default = "true", readers = ["app"], files = ["app"], component = "app", description = "允许打断" },
+  { name = "MOMO_BARGEIN_MIN_MS", type = "int", default = "250", readers = ["app"], files = ["app"], component = "app", description = "打断防抖：input.vad{speech_start} 须持续该时长才触发 barge-in" },
+  { name = "MOMO_SESSION_RESUME_TTL_MS", type = "int", default = "60000", readers = ["app"], files = ["app"], component = "app", description = "WS 断开后 session 保活窗口（ms）；TTL 内 hello.resume_session_id 命中则复用并下发 session.snapshot" },
+  { name = "MOMO_IDLE_TIMEOUT_S", type = "int", default = "20", readers = ["app"], files = ["app"], component = "app", description = "空闲多少秒触发自发行为；0=关闭" },
+  { name = "MOMO_SENT_SOFT_CHARS", type = "int", default = "25", readers = ["app"], files = ["app"], component = "app", description = "句切弱切阈值（字符数）" },
+  { name = "MOMO_SENT_MAX_CHARS", type = "int", default = "60", readers = ["app"], files = ["app"], component = "app", description = "句切硬上限（字符数）" },
+  { name = "MOMO_HISTORY_TURNS", type = "int", default = "20", readers = ["app"], files = ["app"], component = "app", description = "注入 LLM 的历史回合数" },
+  { name = "MOMO_FILTER_ENABLED", type = "bool", default = "false", readers = ["app"], files = ["app"], component = "app", description = "外部 ingress/egress 过滤开关（streaming adapter 前置）" },
+  { name = "MOMO_DATA_COLLECTION", type = "enum", values = ["on", "off"], default = "on", readers = ["app"], files = ["app"], component = "app", description = "会话采集开关（语料落盘供训练/微调）" },
+  { name = "MOMO_DATA_KEEP_AUDIO", type = "enum", values = ["on", "off"], default = "off", sensitive = true, readers = ["app"], files = ["app"], component = "app", description = "原始麦音频短期保留（敏感产物：仅显式开启且授权时，供 ASR 排错）" },
+  { name = "MOMO_EMOTION_MAP", type = "path", default = "config/emotion.map.yaml", readers = ["app"], files = ["app"], component = "app", description = "emotion tag → Live2D 表情映射文件路径" },
+  # ===== 模型服务（models 读） =====
+  { name = "MOMO_ASR_LISTEN", type = "string", default = "127.0.0.1:7810", readers = ["models", "infra"], files = ["app", "models", "infra"], component = "models", description = "ASR WS 监听；infra doctor 探 /healthz" },
+  { name = "MOMO_ASR_PROVIDER", type = "enum", values = ["sensevoice"], default = "sensevoice", readers = ["models"], files = ["app", "models"], component = "models", description = "ASR 后端；云端实现经 registry 同级注册" },
+  { name = "MOMO_ASR_MODEL", type = "string", default = "sense-voice-small-int8", readers = ["models"], files = ["app", "models"], component = "models", description = "ASR 模型：MANIFEST 条目名（其 dest 即模型目录）" },
+  { name = "MOMO_ASR_THREADS", type = "int", default = "4", readers = ["models"], files = ["app", "models"], component = "models", description = "sherpa-onnx CPU 线程（1–16）" },
+  { name = "MOMO_VAD_PROVIDER", type = "enum", values = ["silero"], default = "silero", readers = ["models"], files = ["app", "models"], component = "models", description = "VAD 后端" },
+  { name = "MOMO_VAD_SILENCE_MS", type = "int", default = "250", readers = ["models"], files = ["app", "models"], component = "models", description = "VAD 判停静音时长（ms）" },
+  { name = "MOMO_TTS_LISTEN", type = "string", default = "127.0.0.1:7811", readers = ["models", "infra"], files = ["app", "models", "infra"], component = "models", description = "TTS WS 监听；infra doctor 探 /healthz" },
+  { name = "MOMO_TTS_PROVIDER", type = "enum", values = ["edge", "kokoro", "f5", "cosyvoice3", "sovits"], default = "kokoro", readers = ["models"], files = ["app", "models"], component = "models", description = "TTS 后端" },
+  { name = "MOMO_TTS_DEVICE", type = "enum", values = ["cuda", "cpu", "mps"], default = "cuda", readers = ["models"], files = ["app", "models"], component = "models", description = "TTS 推理设备" },
+  { name = "MOMO_TTS_VOICE", type = "string", default = "", readers = ["models"], files = ["app", "models"], component = "models", description = "TTS 音色名（各后端自行解释；空=按 MOMO_TTS_LANG 默认）" },
+  { name = "MOMO_TTS_VOICE_REF", type = "path", default = "", readers = ["models"], files = ["app", "models"], component = "models", description = "克隆用参考音频路径" },
+  { name = "MOMO_TTS_MODEL_DIR", type = "path", default = "", readers = ["models"], files = ["app", "models"], component = "models", description = "SFT 克隆产物目录（灰度切换/回滚指向）" },
+  { name = "MOMO_TTS_LANG", type = "enum", values = ["zh", "en", "ja", "auto"], default = "auto", readers = ["models"], files = ["app", "models"], component = "models", description = "合成默认语言" },
+  { name = "MOMO_MEMORY_ENABLED", type = "bool", default = "false", readers = ["models"], files = ["app", "models"], component = "models", description = "记忆检索开关" },
+  { name = "MOMO_MEMORY_DB", type = "path", default = "data/momo.vec.db", readers = ["models"], files = ["app", "models"], component = "models", description = "sqlite-vec 库路径" },
+  { name = "MOMO_VISION_ENDPOINT", type = "url", default = "https://api.deepseek.com/v1", readers = ["models"], files = ["app", "models"], component = "models", description = "视觉 API" },
+  { name = "MOMO_VISION_MODEL", type = "string", default = "deepseek-v4-flash-vision-exp", readers = ["models"], files = ["app", "models"], component = "models", description = "视觉模型" },
+  { name = "MOMO_VISION_API_KEY", type = "string", default = "", sensitive = true, readers = ["models"], files = ["app", "models"], component = "models", description = "视觉 provider 鉴权 key" },
+  { name = "MOMO_EMBED_LISTEN", type = "string", default = "127.0.0.1:7812", readers = ["models"], files = ["app", "models"], component = "models", description = "embed 服务 WS 监听（记忆检索）" },
+  { name = "MOMO_COSYVOICE3_HOME", type = "path", default = "", readers = ["models"], files = ["app", "models"], component = "models", description = "FunAudioLLM/CosyVoice 源码 checkout（cosyvoice3 官方推理栈；含 third_party/Matcha-TTS 子模块）" },
+  { name = "MOMO_COSYVOICE3_PYTHON", type = "path", default = "", readers = ["models"], files = ["app", "models"], component = "models", description = "cosyvoice3 隔离 venv/conda 解释器（官方栈不走本包 venv）" },
+  # ===== infra 读（大脑启停、momoctl web 鉴权） =====
+  { name = "MOMO_WEB_TOKEN", type = "string", default = "", sensitive = true, readers = ["infra"], files = ["app", "infra"], component = "infra", description = "momoctl web 控制台鉴权 token；--listen 放宽出 localhost 时必填（未设拒绝启动）" },
+  { name = "MOMO_BRAIN_BACKEND", type = "enum", values = ["mlx", "vllm", "deepseek", "local"], default = "mlx", readers = ["infra"], files = ["app", "infra"], component = "infra", description = "大脑后端类型" },
+  { name = "MOMO_BRAIN_MODEL_PATH", type = "path", default = "~/models/Qwen3-8B-4bit", readers = ["infra"], files = ["app", "infra"], component = "infra", description = "本地模型目录；degraded 指 GGUF" },
+  { name = "MOMO_BRAIN_PORT", type = "int", default = "7820", readers = ["infra"], files = ["app", "infra"], component = "infra", description = "大脑服务端口（对应 MOMO_LLM_ENDPOINT）" },
+]
+
+# 上游工具直通变量（非 MOMO_ 前缀，config.md §2.5）
+passthrough = [
+  { name = "HF_ENDPOINT", type = "url", default = "https://hf-mirror.com", files = ["app", "models", "infra"], description = "HF 镜像；laptop 必须（huggingface.co 不通，ADR-017）" },
+  { name = "UV_INDEX_URL", type = "url", default = "", files = [], description = "PyPI 镜像（uv）；仅安装期生效" },
+  { name = "PIP_INDEX_URL", type = "url", default = "", files = [], description = "PyPI 镜像（pip）；仅安装期生效" },
+  { name = "HTTPS_PROXY", type = "string", default = "", files = [], description = "代理；如有需要" },
+]

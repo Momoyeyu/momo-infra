@@ -1,0 +1,109 @@
+# momo-models —— 模型服务与训练仓库（设计：momo-docs/02-repos/momo-models.md）
+# uv 管理；`uv sync` 默认只装核心依赖，重模型依赖全部走 optional-dependencies。
+
+[project]
+name = "momo-models"
+version = "0.1.0"
+description = "momo model services and training: momo-svc-asr / momo-svc-tts / momo-svc-embed, voice cloning, persona fine-tuning, eval"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "PolyForm-Noncommercial-1.0.0" }
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic-settings>=2.6",
+    "structlog>=24.4",
+    "numpy>=2.1",
+]
+
+[project.scripts]
+momo-svc-asr = "momo_models.services.asr_service:main"
+momo-svc-tts = "momo_models.services.tts_service:main"
+momo-svc-embed = "momo_models.services.embed_service:main"
+
+# ===== 重模型依赖（按需安装，默认 sync 不带）=====
+#
+# torch 平台档（torch/torchaudio 版本必须对齐，见 docs/00-context/decisions.md「ADR-018」）：
+#   mac-studio（无 CUDA，PyPI 默认轮即 MPS/CPU 版）：
+#     uv sync --extra torch-mac --extra tts
+#   laptop（linux + CUDA，走 pytorch cu124 index）：
+#     uv sync --extra torch-cu124 --extra tts
+#
+# cosyvoice3（Fun-CosyVoice3-0.5B）与 sovits（GPT-SoVITS）不发 PyPI：
+# cosyvoice3 走官方源码栈 + 隔离 venv 子进程接入（MOMO_COSYVOICE3_HOME/PYTHON，
+# 见 providers/tts/cosyvoice3.py），本 venv 只需 `tts` extra 的 soundfile 做参考音预检；
+# sovits 同路子进程隔离（实装中），此处不留 extra 条目。
+[project.optional-dependencies]
+torch-mac = [
+    "torch==2.6.*",
+    "torchaudio==2.6.*",
+]
+torch-cu124 = [
+    "torch==2.6.*",
+    "torchaudio==2.6.*",
+]
+tts = [
+    "edge-tts>=7.0",      # providers/tts/edge.py（P0 过渡，依赖外网）
+    "kokoro>=0.9.4",      # providers/tts/kokoro.py（实测兜底；en g2p 另需系统 espeak-ng）
+    "misaki[zh]>=0.9.4",  # kokoro zh pipeline 的 g2p（jieba/pypinyin）
+    "misaki[ja]>=0.9.4",  # kokoro ja pipeline 的 g2p（fugashi）
+    "f5-tts>=1.1",        # providers/tts/f5.py（零样本克隆，需干净参考音）
+    "soundfile>=0.13",    # edge.py MP3→PCM 解码（libsndfile/mpg123）
+]
+asr = [
+    "sherpa-onnx>=1.12",       # providers/asr/sensevoice.py + providers/vad/silero.py（纯 CPU）
+    "sherpa-onnx-core>=1.12",  # sherpa-onnx 原生库（上游把 requires-dist 标成 Dynamic，解析器漏拉）
+    "soundfile>=0.13",
+]
+embed = [
+    "sentence-transformers>=3.0",  # BGE-M3（P3）
+]
+llm-eval = [
+    "openai>=1.50",  # providers/llm/*：仅 eval/bench 薄客户端，运行时不经它
+]
+
+# linux + torch-cu124 组合才走 pytorch 官方 cu124 index（非 PyPI 镜像，属正常源）。
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu124", marker = "sys_platform == 'linux'", extra = "torch-cu124" },
+]
+torchaudio = [
+    { index = "pytorch-cu124", marker = "sys_platform == 'linux'", extra = "torch-cu124" },
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.28",  # fastapi.testclient 依赖
+    "ruff>=0.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/momo_models"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gpu: needs GPU / real model weights, skipped on CI (-m 'not gpu and not slow')",
+    "slow: slow tests, skipped on CI",
+]

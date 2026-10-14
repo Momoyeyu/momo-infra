@@ -18,3 +18,9 @@
 |---|---|
 | `docs/` | 设计文档（单一来源） |
 | `site/` | VitePress 文档站 |
+| `infra/` | `momoctl` CLI + Web 控制台 + jobs/pipeline 编排（Rust） |
+| `models/` | Python inference adapters + 训练实体 |
+| `evals/` | 评测集（`evals/voice/` 声线盲听 testset；persona 回归集在 momo 仓） |
+| `config.schema.toml` | `MOMO_*` env 机器可读单源 schema（`momoctl config check` 校验） |
+
+代码目录自 [momo](https://github.com/Momoyeyu/momo) 仓迁入（源 commit `momo@41d320f`）。

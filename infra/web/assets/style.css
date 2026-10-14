@@ -1,0 +1,506 @@
+/* momo console SPA：无构建链手写样式。状态色统一 ok 绿 / warn 黄 / fail 红。 */
+:root {
+  --bg: #101418;
+  --panel: #161b22;
+  --panel-2: #1c2330;
+  --border: #2b3340;
+  --fg: #e6edf3;
+  --muted: #8b98a9;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --fail: #f85149;
+  --accent: #79c0ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+code,
+pre,
+.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+code {
+  color: var(--accent);
+}
+
+/* ---------- 顶栏与 tab ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0 1.25rem;
+  height: 3rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  height: 100%;
+}
+
+.tabs a {
+  display: flex;
+  align-items: center;
+  padding: 0 0.9rem;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.tabs a:hover {
+  color: var(--fg);
+}
+
+.tabs a.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.topbar-right {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- 主区 ---------- */
+
+main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.page-head h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.page-head .spacer {
+  flex: 1;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error-box {
+  border: 1px solid var(--fail);
+  background: rgba(248, 81, 73, 0.08);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+}
+
+/* ---------- 控件 ---------- */
+
+.btn {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn.primary {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+
+.btn.danger:hover:not(:disabled) {
+  border-color: var(--fail);
+  color: var(--fail);
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg button {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.seg button.active {
+  background: var(--panel-2);
+  color: var(--fg);
+}
+
+/* ---------- 卡片与状态 ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(30rem, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.card > h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.badge.ok {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.badge.warn {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.badge.fail {
+  color: var(--fail);
+  border-color: var(--fail);
+}
+
+/* ---------- 检查项行（doctor/serve 共用） ---------- */
+
+.check {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(7rem, auto) 1fr;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.88rem;
+  align-items: baseline;
+}
+
+.check .st {
+  font-weight: 650;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.check .st.ok {
+  color: var(--ok);
+}
+
+.check .st.warn {
+  color: var(--warn);
+}
+
+.check .st.fail {
+  color: var(--fail);
+}
+
+.check .cid {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.check .detail {
+  overflow-wrap: anywhere;
+}
+
+.check .hint {
+  grid-column: 2 / -1;
+  color: var(--warn);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.check .hint::before {
+  content: "hint: ";
+  color: var(--muted);
+}
+
+.check a.jump {
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+/* ---------- 表格 ---------- */
+
+table.list {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+table.list th,
+table.list td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+}
+
+table.list th {
+  color: var(--muted);
+  font-weight: 600;
+  border-top: 0;
+}
+
+table.list td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------- 日志面板 ---------- */
+
+.log-panel {
+  background: #0b0e12;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  max-height: 24rem;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.log-panel .log-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- modal ---------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.modal.hidden {
+  display: none;}
+
+.modal-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  width: min(26rem, 90vw);
+}
+
+.modal-box h2 {
+  margin-top: 0;
+}
+
+.modal-box input {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  margin-bottom: 0.75rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.hidden {
+  display: none;
+}
+.muted {
+  color: #8b949e;
+}
+.err {
+  color: #ff7b72;
+}
+
+/* 配置页 */
+.authbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.6rem;
+  margin-bottom: 1rem;
+  border: 1px solid #d29922;
+  border-radius: 6px;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+.banner {
+  padding: 0.7rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+}
+.banner.ok {
+  border-color: #238636;
+  background: #12261e;
+}
+.banner.err {
+  border-color: #f85149;
+  background: #2d1517;
+}
+.banner.info {
+  border-color: #1f6feb;
+  background: #111d2e;
+}
+.banner ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.cfg-section h2 {
+  font-size: 0.95rem;
+  color: #8b949e;
+  border-bottom: 1px solid #21262d;
+  padding-bottom: 0.3rem;
+  margin: 1.4rem 0 0.6rem;
+}
+.cfg-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+.cfg-table select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.cfg-switch {
+  width: auto;
+  transform: scale(1.2);
+}
+.help {
+  color: #8b949e;
+  font-size: 0.75rem;
+  margin-top: 0.15rem;
+}
+.mini {
+  font-size: 0.72rem;
+  padding: 0 0.35rem;
+  vertical-align: middle;
+}
+.tag.warn {
+  color: #d29922;
+  border-color: #d29922;
+}
+.cfg-table td {
+  padding: 0.35rem 0.4rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #21262d;
+}
+.cfg-table td:first-child {
+  width: 34%;
+}
+.cfg-table input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.cfg-table input:disabled {
+  opacity: 0.55;
+}
+.tag {
+  font-size: 0.72rem;
+  color: #8b949e;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 0 0.3rem;
+  vertical-align: middle;
+}
+.field-err {
+  color: #ff7b72;
+  font-size: 0.8rem;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  color: inherit;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+}
+button {
+  cursor: pointer;
+  background: #21262d;
+}
+button:hover {
+  background: #30363d;
+}
+button.primary {
+  background: #1f6feb;
+  border-color: #1f6feb;
+}
+button.primary:hover {
+  background: #388bfd;
+}
