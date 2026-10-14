@@ -127,6 +127,7 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> list[ManifestEntry]:
         except KeyError as e:
             raise ManifestError(f"{where}: missing required fields {e}") from e
         if source not in _VALID_SOURCES:
+            raise ManifestError(f"{where}: source must be one of {_VALID_SOURCES}")
         if source == "url":
             for f in entries[-1].files:
                 if not f.url or not f.url.startswith(("http://", "https://")):
