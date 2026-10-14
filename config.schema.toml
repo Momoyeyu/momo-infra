@@ -13,6 +13,7 @@ key = [
   { name = "MOMO_UI_DIR", type = "path", default = "./web/dist", readers = ["app"], files = ["app"], component = "app", description = "前端静态目录（打包内嵌时忽略）" },
   { name = "MOMO_PERSONA_FILE", type = "path", default = "persona/momo.yaml", readers = ["app"], files = ["app"], component = "app", description = "persona card 路径；读不到回退内嵌 card，每回合重读（热加载）" },
   { name = "MOMO_UI_TOKEN", type = "string", default = "", sensitive = true, readers = ["app"], files = ["app"], component = "app", description = "/ws/ui hello 的期望 auth_token；desktop 启动时注入，空=standalone dev 不比对（字段仍必填）" },
+  { name = "MOMO_MOMOD_BIN", type = "path", default = "", readers = ["app"], files = ["app"], component = "app", description = "桌面壳 spawn momod 的二进制路径覆盖；空=exe 同级目录→PATH 解析" },
   { name = "MOMO_WEB_ORIGIN", type = "url", default = "http://localhost:5173", readers = ["app"], files = ["app"], component = "app", description = "浏览器来源（CORS/WS Origin 白名单）" },
   { name = "MOMO_LLM_ENDPOINT", type = "url", default = "http://mac-studio.local:7820/v1", readers = ["app", "infra"], files = ["app", "infra"], examples = { infra = "http://mac-studio:7820/v1" }, component = "app", description = "大脑 OpenAI-compatible base URL；infra doctor 探 /models" },
   { name = "MOMO_LLM_MODEL", type = "string", default = "qwen3-30b-a3b-4bit", readers = ["app", "infra"], files = ["app", "infra"], component = "app", description = "传给大脑的 model 字段" },
